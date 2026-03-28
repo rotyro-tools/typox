@@ -106,25 +106,15 @@ npm run tauri dev
 
 ### Scripts
 
-| Command                        | Description                      |
-| ------------------------------ | -------------------------------- |
-| `npm run tauri dev`            | Start dev server with hot reload |
-| `npm run tauri build`          | Build production app             |
-| `npm run lint`                 | Run ESLint                       |
-| `npm run format`               | Format with Prettier             |
-| `npm run test`                 | Run unit tests                   |
-| `npm run test:coverage`        | Run tests with coverage          |
-| `npm run cm`                   | Commitizen commit wizard         |
-| `npm run release:new -- patch` | Bump patch version and tag       |
-
-### Release
-
-```bash
-npm run release:new -- patch   # or minor / major / x.y.z
-git push origin main --tags
-```
-
-CI builds all platforms and creates a draft GitHub Release. Publish the draft to make auto-updates available.
+| Command                 | Description                      |
+| ----------------------- | -------------------------------- |
+| `npm run tauri dev`     | Start dev server with hot reload |
+| `npm run tauri build`   | Build production app             |
+| `npm run lint`          | Run ESLint                       |
+| `npm run format`        | Format with Prettier             |
+| `npm run test`          | Run unit tests                   |
+| `npm run test:coverage` | Run tests with coverage          |
+| `npm run cm`            | Commitizen commit wizard         |
 
 ---
 
