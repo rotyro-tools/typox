@@ -10,11 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+coverage/
 *.local
-
-# Rust build artifacts
-src-tauri/target/
-src-tauri/gen/
 
 # Editor directories and files
 .vscode/*
