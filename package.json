@@ -18,6 +18,9 @@
     "prepare": "husky",
     "release:new": "bash scripts/release.sh"
   },
+  "overrides": {
+    "picomatch": "^4.0.4"
+  },
   "config": {
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog"
