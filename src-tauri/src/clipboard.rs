@@ -109,23 +109,21 @@ async fn do_capture(app: &AppHandle) -> Result<(), String> {
         String::from_utf8_lossy(&out.stdout).trim().to_string()
     };
     #[cfg(target_os = "windows")]
-    let source_app = {
-        let out = std::process::Command::new("powershell")
-            .args([
-                "-NoProfile", "-Command",
-                "Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; \
-                 public class W { \
-                   [DllImport(\"user32\")] public static extern IntPtr GetForegroundWindow(); \
-                   [DllImport(\"user32\")] public static extern int GetWindowThreadProcessId(IntPtr h, out int p); \
-                 }'; \
-                 $h=[W]::GetForegroundWindow(); $p=0; \
-                 [W]::GetWindowThreadProcessId($h,[ref]$p); \
-                 (Get-Process -Id $p).Name",
-            ])
-            .output()
-            .unwrap_or_default();
-        String::from_utf8_lossy(&out.stdout).trim().to_string()
-    };
+    let source_app = std::process::Command::new("powershell")
+        .args([
+            "-NoProfile", "-Command",
+            "Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; \
+             public class W { \
+               [DllImport(\"user32\")] public static extern IntPtr GetForegroundWindow(); \
+               [DllImport(\"user32\")] public static extern int GetWindowThreadProcessId(IntPtr h, out int p); \
+             }'; \
+             $h=[W]::GetForegroundWindow(); $p=0; \
+             [W]::GetWindowThreadProcessId($h,[ref]$p); \
+             (Get-Process -Id $p).Name",
+        ])
+        .output()
+        .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_string())
+        .unwrap_or_default();
     #[cfg(target_os = "linux")]
     let source_app = std::process::Command::new("xdotool")
         .arg("getactivewindow")
