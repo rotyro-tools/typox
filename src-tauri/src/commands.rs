@@ -457,6 +457,124 @@ fn default_openai_models() -> Vec<String> {
     ]
 }
 
+/// Parses a shortcut string like "Ctrl+Shift+Space" into a Tauri Shortcut.
+pub fn parse_shortcut(s: &str) -> Option<tauri_plugin_global_shortcut::Shortcut> {
+    use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut};
+
+    let mut modifiers = Modifiers::empty();
+    let mut key_code: Option<Code> = None;
+
+    for part in s.split('+') {
+        match part {
+            "Ctrl" => modifiers |= Modifiers::CONTROL,
+            "Shift" => modifiers |= Modifiers::SHIFT,
+            "Alt" => modifiers |= Modifiers::ALT,
+            "Meta" | "Super" | "Cmd" => modifiers |= Modifiers::META,
+            key => {
+                key_code = match key {
+                    "Space" => Some(Code::Space),
+                    "A" => Some(Code::KeyA),
+                    "B" => Some(Code::KeyB),
+                    "C" => Some(Code::KeyC),
+                    "D" => Some(Code::KeyD),
+                    "E" => Some(Code::KeyE),
+                    "F" => Some(Code::KeyF),
+                    "G" => Some(Code::KeyG),
+                    "H" => Some(Code::KeyH),
+                    "I" => Some(Code::KeyI),
+                    "J" => Some(Code::KeyJ),
+                    "K" => Some(Code::KeyK),
+                    "L" => Some(Code::KeyL),
+                    "M" => Some(Code::KeyM),
+                    "N" => Some(Code::KeyN),
+                    "O" => Some(Code::KeyO),
+                    "P" => Some(Code::KeyP),
+                    "Q" => Some(Code::KeyQ),
+                    "R" => Some(Code::KeyR),
+                    "S" => Some(Code::KeyS),
+                    "T" => Some(Code::KeyT),
+                    "U" => Some(Code::KeyU),
+                    "V" => Some(Code::KeyV),
+                    "W" => Some(Code::KeyW),
+                    "X" => Some(Code::KeyX),
+                    "Y" => Some(Code::KeyY),
+                    "Z" => Some(Code::KeyZ),
+                    "F1" => Some(Code::F1),
+                    "F2" => Some(Code::F2),
+                    "F3" => Some(Code::F3),
+                    "F4" => Some(Code::F4),
+                    "F5" => Some(Code::F5),
+                    "F6" => Some(Code::F6),
+                    "F7" => Some(Code::F7),
+                    "F8" => Some(Code::F8),
+                    "F9" => Some(Code::F9),
+                    "F10" => Some(Code::F10),
+                    "F11" => Some(Code::F11),
+                    "F12" => Some(Code::F12),
+                    _ => None,
+                };
+            }
+        }
+    }
+
+    key_code.map(|code| {
+        Shortcut::new(
+            if modifiers.is_empty() {
+                None
+            } else {
+                Some(modifiers)
+            },
+            code,
+        )
+    })
+}
+
+/// Re-registers the global shortcut with the new value and persists it to settings.
+#[tauri::command]
+pub fn update_shortcut(
+    window: tauri::WebviewWindow,
+    app: AppHandle,
+    shortcut: String,
+) -> Result<(), String> {
+    use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+
+    require_window(&window, "settings")?;
+
+    let new_shortcut =
+        parse_shortcut(&shortcut).ok_or_else(|| format!("Invalid shortcut: {shortcut}"))?;
+
+    let mut settings = crate::settings::load(&app);
+    let old_shortcut = parse_shortcut(&settings.shortcut);
+
+    // Unregister previous shortcut
+    if let Some(old) = old_shortcut {
+        let _ = app.global_shortcut().unregister(old);
+    }
+
+    // Register new shortcut
+    let handle = app.clone();
+    app.global_shortcut()
+        .on_shortcut(new_shortcut, move |app, _shortcut, event| {
+            if event.state() == ShortcutState::Pressed {
+                let busy = app
+                    .get_webview_window("widget")
+                    .and_then(|w| w.is_visible().ok())
+                    .unwrap_or(false);
+                if busy {
+                    return;
+                }
+                let h = handle.clone();
+                tauri::async_runtime::spawn(async move {
+                    crate::clipboard::capture_and_correct(h).await;
+                });
+            }
+        })
+        .map_err(|e| e.to_string())?;
+
+    settings.shortcut = shortcut;
+    crate::settings::save(&app, &settings)
+}
+
 /// Spawns a full update flow (check → download → install → restart) with live
 /// status events emitted to the settings window for UI feedback.
 #[tauri::command]
@@ -537,11 +655,8 @@ pub async fn run_update_check(app: AppHandle) {
         let _ = app
             .notification()
             .builder()
-            .title("Typox update available")
-            .body(format!(
-                "Version {} is ready — open Settings to install.",
-                update.version
-            ))
+            .title("Update available")
+            .body(format!("v{} is available.", update.version))
             .show();
     }
 }

@@ -34,11 +34,14 @@ async function initSettings(): Promise<void> {
     })
     .catch(() => {});
 
+  const DEFAULT_SHORTCUT = 'Ctrl+Shift+Space';
+
   interface SavedSettings {
     provider: Provider;
     model: string;
     launchAtLogin: boolean;
     customPrompt?: string | null;
+    shortcut: string;
   }
 
   // Elements
@@ -77,10 +80,17 @@ async function initSettings(): Promise<void> {
   const btnSave = document.getElementById('btn-save') as HTMLButtonElement;
   const btnUpdate = document.getElementById('btn-update') as HTMLButtonElement;
   const appVersion = document.getElementById('app-version')!;
+  const shortcutRecorder = document.getElementById(
+    'shortcut-recorder',
+  ) as HTMLButtonElement;
+  const btnResetShortcut = document.getElementById('btn-reset-shortcut')!;
+  const shortcutHint = document.getElementById('shortcut-hint')!;
 
   let defaultPrompt = '';
   let savedClaudeKey = '';
   let savedOpenaiKey = '';
+  let currentShortcut = DEFAULT_SHORTCUT;
+  let isRecording = false;
 
   const EYE_SVG =
     '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>';
@@ -94,6 +104,27 @@ async function initSettings(): Promise<void> {
       input.type = isHidden ? 'text' : 'password';
       btn.innerHTML = isHidden ? EYE_OFF_SVG : EYE_SVG;
     });
+  }
+
+  function setShortcut(value: string): void {
+    currentShortcut = value;
+    shortcutRecorder.textContent = value;
+  }
+
+  function startRecording(): void {
+    isRecording = true;
+    shortcutRecorder.textContent = 'Press keys…';
+    shortcutRecorder.classList.add('border-purple-500/50', 'text-white');
+    shortcutRecorder.classList.remove('text-white/70');
+    shortcutHint.textContent = 'Press Esc to cancel';
+  }
+
+  function stopRecording(): void {
+    isRecording = false;
+    shortcutRecorder.textContent = currentShortcut;
+    shortcutRecorder.classList.remove('border-purple-500/50', 'text-white');
+    shortcutRecorder.classList.add('text-white/70');
+    shortcutHint.textContent = '';
   }
 
   async function loadKeyIntoInput(
@@ -234,8 +265,11 @@ async function initSettings(): Promise<void> {
         model,
         launchAtLogin: launchAtLogin.checked,
         customPrompt,
+        shortcut: currentShortcut,
       },
     });
+
+    await invoke('update_shortcut', { shortcut: currentShortcut });
   }
 
   // ── Event wiring ────────────────────────────────────────────────────────────
@@ -250,6 +284,83 @@ async function initSettings(): Promise<void> {
 
   btnResetPrompt.addEventListener('click', () => {
     promptTextarea.value = defaultPrompt;
+  });
+
+  shortcutRecorder.addEventListener('click', () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  });
+
+  btnResetShortcut.addEventListener('click', () => {
+    stopRecording();
+    setShortcut(DEFAULT_SHORTCUT);
+  });
+
+  function buildPreview(e: KeyboardEvent): string {
+    const parts: string[] = [];
+    if (e.ctrlKey) parts.push('Ctrl');
+    if (e.shiftKey) parts.push('Shift');
+    if (e.altKey) parts.push('Alt');
+    if (e.metaKey) parts.push('Meta');
+    return parts.join('+');
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (!isRecording) return;
+    e.preventDefault();
+
+    if (e.key === 'Escape') {
+      stopRecording();
+      return;
+    }
+
+    const isModifier = ['Control', 'Shift', 'Alt', 'Meta'].includes(e.key);
+
+    // Show live modifier preview while building the combo
+    if (isModifier) {
+      const preview = buildPreview(e);
+      shortcutRecorder.textContent = preview ? preview + '+' : 'Press keys…';
+      return;
+    }
+
+    // Require at least one modifier before the final key
+    if (!e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) return;
+
+    const parts: string[] = [];
+    if (e.ctrlKey) parts.push('Ctrl');
+    if (e.shiftKey) parts.push('Shift');
+    if (e.altKey) parts.push('Alt');
+    if (e.metaKey) parts.push('Meta');
+
+    const key = e.code.startsWith('Key')
+      ? e.code.slice(3)
+      : e.code.startsWith('Digit')
+        ? e.code.slice(5)
+        : e.key === ' '
+          ? 'Space'
+          : e.key;
+
+    parts.push(key);
+    setShortcut(parts.join('+'));
+    stopRecording();
+  });
+
+  document.addEventListener('keyup', (e) => {
+    if (!isRecording) return;
+    const isModifier = ['Control', 'Shift', 'Alt', 'Meta'].includes(e.key);
+    if (!isModifier) return;
+    // Update preview as modifiers are released during recording
+    const parts: string[] = [];
+    if (e.key !== 'Control' && e.ctrlKey) parts.push('Ctrl');
+    if (e.key !== 'Shift' && e.shiftKey) parts.push('Shift');
+    if (e.key !== 'Alt' && e.altKey) parts.push('Alt');
+    if (e.key !== 'Meta' && e.metaKey) parts.push('Meta');
+    shortcutRecorder.textContent = parts.length
+      ? parts.join('+') + '+'
+      : 'Press keys…';
   });
 
   btnSave.addEventListener('click', () => {
@@ -273,6 +384,18 @@ async function initSettings(): Promise<void> {
   });
 
   const { listen } = await import('@tauri-apps/api/event');
+
+  await listen('settings-opened', () => {
+    void (async () => {
+      if (isRecording) stopRecording();
+      const saved = await invoke<SavedSettings>('get_settings');
+      providerSelect.value = saved.provider;
+      launchAtLogin.checked = saved.launchAtLogin;
+      promptTextarea.value = saved.customPrompt ?? defaultPrompt;
+      setShortcut(saved.shortcut ?? DEFAULT_SHORTCUT);
+      await switchProvider(saved.provider, saved.model);
+    })();
+  });
   await listen<{
     state: string;
     version?: string;
@@ -322,6 +445,7 @@ async function initSettings(): Promise<void> {
   providerSelect.value = settings.provider;
   launchAtLogin.checked = settings.launchAtLogin;
   promptTextarea.value = settings.customPrompt ?? defaultPrompt;
+  setShortcut(settings.shortcut ?? DEFAULT_SHORTCUT);
 
   setupEyeToggle(claudeKeyInput, btnToggleClaudeKey);
   setupEyeToggle(openaiKeyInput, btnToggleOpenaiKey);

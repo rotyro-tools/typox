@@ -16,6 +16,7 @@ Select text anywhere, trigger the global shortcut, and Typox corrects it in plac
 - **Three AI backends** — Ollama (local/private), Claude (Anthropic), OpenAI
 - **Floating diff widget** — shows exactly what changed before you apply
 - **Editable corrections** — tweak the AI result before applying
+- **Customizable shortcut** — change the global trigger from Settings
 - **Auto-updates** — checks for new versions at startup
 - **Launch at login** — runs silently in the menu bar
 
@@ -84,6 +85,15 @@ Open Settings from the menu bar icon.
 
 - Requires an [OpenAI API key](https://platform.openai.com)
 - Default model: `gpt-4o-mini`
+
+### Global Shortcut
+
+Click the shortcut field in Settings and press any key combination to change it. Default is `Ctrl+Shift+Space`.
+
+### Other
+
+- **Launch at login** — toggle in Settings to start Typox automatically on login
+- **System prompt** — customize the AI correction instructions in Settings
 
 ---
 

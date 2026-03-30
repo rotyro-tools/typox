@@ -5,15 +5,24 @@
     <link rel="stylesheet" href="/src/style.css" />
     <title>Settings</title>
   </head>
-  <body class="m-0 p-0 bg-neutral-900 text-white font-sans select-none flex flex-col h-screen">
+  <body
+    class="m-0 p-0 bg-neutral-900 text-white font-sans select-none flex flex-col h-screen"
+  >
     <!-- Header -->
     <div
       class="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/6 shrink-0"
     >
-      <img id="app-icon" alt="Typox" class="w-14 h-14 rounded-xl bg-white p-1" />
+      <img
+        id="app-icon"
+        alt="Typox"
+        class="w-14 h-14 rounded-xl bg-white p-1"
+      />
       <div class="flex flex-col items-end gap-0.5">
         <span class="text-sm font-semibold tracking-tight">Typox</span>
-        <span id="app-version" class="text-[11px] text-white/30 font-mono"></span>
+        <span
+          id="app-version"
+          class="text-[11px] text-white/30 font-mono"
+        ></span>
       </div>
     </div>
 
@@ -157,6 +166,31 @@
       <!-- Divider -->
       <div class="border-t border-white/6"></div>
 
+      <!-- Global Shortcut -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <p
+            class="text-[10px] uppercase tracking-widest text-white/30 font-medium"
+          >
+            Global Shortcut
+          </p>
+          <button
+            id="btn-reset-shortcut"
+            class="text-[11px] text-white/30 hover:text-white/60 cursor-pointer transition-colors"
+          >
+            Reset to default
+          </button>
+        </div>
+        <button
+          id="shortcut-recorder"
+          class="w-full px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-white/70 hover:bg-white/8 cursor-pointer transition-colors text-left font-mono"
+        ></button>
+        <p id="shortcut-hint" class="text-[11px] text-white/30"></p>
+      </div>
+
+      <!-- Divider -->
+      <div class="border-t border-white/6"></div>
+
       <!-- Launch at login -->
       <div class="flex items-center justify-between">
         <label
@@ -170,7 +204,6 @@
           class="accent-purple-500 w-4 h-4 cursor-pointer"
         />
       </div>
-
     </div>
 
     <!-- Footer -->

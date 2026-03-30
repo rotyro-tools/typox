@@ -6,7 +6,7 @@ mod state;
 
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
-use tauri::{Manager, WindowEvent};
+use tauri::{Emitter, Manager, WindowEvent};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 use state::AppState;
@@ -48,6 +48,7 @@ pub fn run() {
                 .on_menu_event(|app, event| {
                     if event.id().as_ref() == "settings" {
                         if let Some(win) = app.get_webview_window("settings") {
+                            let _ = app.emit_to("settings", "settings-opened", ());
                             let _ = win.show();
                             let _ = win.set_focus();
                         }
@@ -55,8 +56,12 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // ── Global shortcut: Ctrl+Shift+Space ─────────────────────────────
-            let shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
+            // ── Global shortcut (user-configurable, loaded from settings) ────────
+            // Falls back to Ctrl+Shift+Space if the saved value can't be parsed.
+            let saved_shortcut_str = settings::load(app.handle()).shortcut;
+            let shortcut = commands::parse_shortcut(&saved_shortcut_str).unwrap_or_else(|| {
+                Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space)
+            });
             app.handle()
                 .global_shortcut()
                 .on_shortcut(shortcut, |app, _shortcut, event| {
@@ -106,6 +111,7 @@ pub fn run() {
             commands::dismiss_correction,
             commands::retry_correction,
             commands::check_update,
+            commands::update_shortcut,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

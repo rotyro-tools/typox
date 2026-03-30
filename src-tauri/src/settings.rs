@@ -10,6 +10,12 @@ pub struct Settings {
     pub launch_at_login: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_prompt: Option<String>,
+    #[serde(default = "default_shortcut")]
+    pub shortcut: String,
+}
+
+fn default_shortcut() -> String {
+    "Ctrl+Shift+Space".to_string()
 }
 
 impl Default for Settings {
@@ -19,6 +25,7 @@ impl Default for Settings {
             model: String::new(),
             launch_at_login: false,
             custom_prompt: None,
+            shortcut: default_shortcut(),
         }
     }
 }
@@ -56,6 +63,7 @@ mod tests {
         assert_eq!(s.provider, "ollama");
         assert!(s.model.is_empty());
         assert!(!s.launch_at_login);
+        assert_eq!(s.shortcut, "Ctrl+Shift+Space");
     }
 
     #[test]
@@ -65,6 +73,7 @@ mod tests {
             model: "claude-haiku-4-5-20251001".to_string(),
             launch_at_login: true,
             custom_prompt: Some("Custom prompt".to_string()),
+            shortcut: "Ctrl+Alt+A".to_string(),
         };
         let json = serde_json::to_value(&original).unwrap();
         let restored: Settings = serde_json::from_value(json).unwrap();
@@ -72,6 +81,7 @@ mod tests {
         assert_eq!(restored.model, original.model);
         assert_eq!(restored.launch_at_login, original.launch_at_login);
         assert_eq!(restored.custom_prompt, original.custom_prompt);
+        assert_eq!(restored.shortcut, original.shortcut);
     }
 
     #[test]

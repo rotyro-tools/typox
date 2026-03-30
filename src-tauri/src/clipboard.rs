@@ -127,13 +127,11 @@ async fn do_capture(app: &AppHandle) -> Result<(), String> {
         String::from_utf8_lossy(&out.stdout).trim().to_string()
     };
     #[cfg(target_os = "linux")]
-    let source_app = {
-        let out = std::process::Command::new("xdotool")
-            .arg("getactivewindow")
-            .output()
-            .unwrap_or_default();
-        String::from_utf8_lossy(&out.stdout).trim().to_string()
-    };
+    let source_app = std::process::Command::new("xdotool")
+        .arg("getactivewindow")
+        .output()
+        .map(|out| String::from_utf8_lossy(&out.stdout).trim().to_string())
+        .unwrap_or_default();
 
     // ── 5. Show widget immediately (skeleton) ─────────────────────────────────
     let widget = app
