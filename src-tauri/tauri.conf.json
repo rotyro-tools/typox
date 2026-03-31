@@ -65,7 +65,8 @@
     "license": "MIT",
     "licenseFile": "../LICENSE.md",
     "macOS": {
-      "infoPlist": "Info.plist"
+      "infoPlist": "Info.plist",
+      "signingIdentity": "-"
     },
     "resources": {
       "icons/128x128.png": "icon.png"

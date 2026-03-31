@@ -29,7 +29,7 @@ Select text anywhere, trigger the global shortcut, and Typox corrects it in plac
 | Windows               | ✅      |
 | Linux                 | ✅      |
 
-> **Note:** Binaries are not code-signed. macOS users will need to right-click → Open on first launch to bypass Gatekeeper. Windows users will see a SmartScreen warning.
+> **Note:** Binaries are ad-hoc signed (no Apple Developer certificate). macOS users may see an "unidentified developer" warning on first launch — right-click → Open to proceed. Windows users will see a SmartScreen warning.
 
 ---
 
