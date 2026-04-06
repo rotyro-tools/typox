@@ -66,6 +66,15 @@ pub fn run() {
                 .global_shortcut()
                 .on_shortcut(shortcut, |app, _shortcut, event| {
                     if event.state() == ShortcutState::Pressed {
+                        let settings_focused = app
+                            .get_webview_window("settings")
+                            .and_then(|w| w.is_focused().ok())
+                            .unwrap_or(false);
+                        if settings_focused {
+                            let current = settings::load(app).shortcut;
+                            let _ = app.emit_to("settings", "shortcut-triggered", current);
+                            return;
+                        }
                         // Skip if a correction is already in progress
                         let busy = app
                             .get_webview_window("widget")

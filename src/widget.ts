@@ -260,7 +260,9 @@ function setEditMode(active: boolean, keepEdits = false): void {
 }
 
 async function applyCorrection(): Promise<void> {
-  const overrideText = isEditing ? (afterText.textContent ?? null) : null;
+  const overrideText = isEditing
+    ? (afterText.textContent ?? lastCorrected)
+    : lastCorrected;
   setEditMode(false);
   clearContent();
   await invoke('apply_correction', { overrideText });

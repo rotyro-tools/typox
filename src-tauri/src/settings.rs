@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use tauri_plugin_store::StoreExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,6 +45,9 @@ pub fn load(app: &AppHandle) -> Settings {
 }
 
 pub fn save(app: &AppHandle, settings: &Settings) -> Result<(), String> {
+    if let Ok(dir) = app.path().app_data_dir() {
+        let _ = std::fs::create_dir_all(dir);
+    }
     let store = app.store(STORE_FILE).map_err(|e| e.to_string())?;
     store.set(
         SETTINGS_KEY,

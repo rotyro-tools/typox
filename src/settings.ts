@@ -121,6 +121,7 @@ async function initSettings(): Promise<void> {
 
   function stopRecording(): void {
     isRecording = false;
+    clearHeldModifiers();
     shortcutRecorder.textContent = currentShortcut;
     shortcutRecorder.classList.remove('border-purple-500/50', 'text-white');
     shortcutRecorder.classList.add('text-white/70');
@@ -299,68 +300,105 @@ async function initSettings(): Promise<void> {
     setShortcut(DEFAULT_SHORTCUT);
   });
 
-  function buildPreview(e: KeyboardEvent): string {
-    const parts: string[] = [];
-    if (e.ctrlKey) parts.push('Ctrl');
-    if (e.shiftKey) parts.push('Shift');
-    if (e.altKey) parts.push('Alt');
-    if (e.metaKey) parts.push('Meta');
-    return parts.join('+');
+  const CODE_MAP: Record<string, string> = {
+    // Modifier keys
+    ControlLeft: 'Ctrl',
+    ControlRight: 'Ctrl',
+    ShiftLeft: 'Shift',
+    ShiftRight: 'Shift',
+    AltLeft: 'Alt',
+    AltRight: 'Alt',
+    MetaLeft: 'Meta',
+    MetaRight: 'Meta',
+    // Special keys
+    Space: 'Space',
+    Enter: 'Enter',
+    Tab: 'Tab',
+    Backspace: 'Backspace',
+    Delete: 'Delete',
+    Insert: 'Insert',
+    Home: 'Home',
+    End: 'End',
+    PageUp: 'PageUp',
+    PageDown: 'PageDown',
+    ArrowUp: 'Up',
+    ArrowDown: 'Down',
+    ArrowLeft: 'Left',
+    ArrowRight: 'Right',
+    // Punctuation
+    Minus: '-',
+    Equal: '=',
+    BracketLeft: '[',
+    BracketRight: ']',
+    Backslash: '\\',
+    Semicolon: ';',
+    Quote: "'",
+    Backquote: '`',
+    Comma: ',',
+    Period: '.',
+    Slash: '/',
+  };
+
+  const MODIFIER_KEYS = new Set(['Ctrl', 'Shift', 'Alt', 'Meta']);
+
+  function codeToKey(code: string): string | null {
+    if (code in CODE_MAP) return CODE_MAP[code];
+    if (code.startsWith('Key')) return code.slice(3); // KeyA → A
+    if (code.startsWith('Digit')) return code.slice(5); // Digit1 → 1
+    if (/^F\d+$/.test(code)) return code; // F1–F12
+    return null;
+  }
+
+  // Tracks modifiers in the order the user pressed them
+  const heldModifiers: string[] = [];
+
+  function clearHeldModifiers(): void {
+    heldModifiers.length = 0;
   }
 
   document.addEventListener('keydown', (e) => {
     if (!isRecording) return;
     e.preventDefault();
 
-    if (e.key === 'Escape') {
+    if (e.code === 'Escape') {
       stopRecording();
+      clearHeldModifiers();
       return;
     }
 
-    const isModifier = ['Control', 'Shift', 'Alt', 'Meta'].includes(e.key);
+    const keyName = codeToKey(e.code);
+    const isModifier = keyName !== null && MODIFIER_KEYS.has(keyName);
 
-    // Show live modifier preview while building the combo
+    // Track and preview modifier keys in press order
     if (isModifier) {
-      const preview = buildPreview(e);
-      shortcutRecorder.textContent = preview ? preview + '+' : 'Press keys…';
+      if (!heldModifiers.includes(keyName!)) heldModifiers.push(keyName!);
+      shortcutRecorder.textContent = heldModifiers.join('+') + '+';
       return;
     }
 
     // Require at least one modifier before the final key
-    if (!e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) return;
+    if (heldModifiers.length === 0) return;
 
-    const parts: string[] = [];
-    if (e.ctrlKey) parts.push('Ctrl');
-    if (e.shiftKey) parts.push('Shift');
-    if (e.altKey) parts.push('Alt');
-    if (e.metaKey) parts.push('Meta');
+    if (!keyName) return; // unrecognised physical key — keep recording
 
-    const key = e.code.startsWith('Key')
-      ? e.code.slice(3)
-      : e.code.startsWith('Digit')
-        ? e.code.slice(5)
-        : e.key === ' '
-          ? 'Space'
-          : e.key;
-
-    parts.push(key);
-    setShortcut(parts.join('+'));
+    setShortcut([...heldModifiers, keyName].join('+'));
     stopRecording();
+    clearHeldModifiers();
   });
 
   document.addEventListener('keyup', (e) => {
     if (!isRecording) return;
-    const isModifier = ['Control', 'Shift', 'Alt', 'Meta'].includes(e.key);
-    if (!isModifier) return;
-    // Update preview as modifiers are released during recording
-    const parts: string[] = [];
-    if (e.key !== 'Control' && e.ctrlKey) parts.push('Ctrl');
-    if (e.key !== 'Shift' && e.shiftKey) parts.push('Shift');
-    if (e.key !== 'Alt' && e.altKey) parts.push('Alt');
-    if (e.key !== 'Meta' && e.metaKey) parts.push('Meta');
-    shortcutRecorder.textContent = parts.length
-      ? parts.join('+') + '+'
-      : 'Press keys…';
+    const keyName = codeToKey(e.code);
+    if (!keyName) return;
+    if (!MODIFIER_KEYS.has(keyName)) {
+      if (heldModifiers.length === 0) return;
+      setShortcut([...heldModifiers, keyName].join('+'));
+      stopRecording();
+      return;
+    }
+
+    const idx = heldModifiers.indexOf(keyName);
+    if (idx !== -1) heldModifiers.splice(idx, 1);
   });
 
   btnSave.addEventListener('click', () => {
@@ -384,6 +422,13 @@ async function initSettings(): Promise<void> {
   });
 
   const { listen } = await import('@tauri-apps/api/event');
+
+  await listen<string>('shortcut-triggered', ({ payload }) => {
+    if (isRecording) {
+      setShortcut(payload);
+      stopRecording();
+    }
+  });
 
   await listen('settings-opened', () => {
     void (async () => {
