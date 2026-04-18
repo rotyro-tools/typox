@@ -21,6 +21,10 @@ fn require_window(window: &tauri::WebviewWindow, label: &str) -> Result<(), Stri
     Ok(())
 }
 
+fn is_not_found_os_error(message: &str) -> bool {
+    message.to_ascii_lowercase().contains("os error 2")
+}
+
 #[tauri::command]
 pub fn get_settings(window: tauri::WebviewWindow, app: AppHandle) -> Result<Settings, String> {
     require_window(&window, "settings")?;
@@ -39,7 +43,12 @@ pub fn save_settings(
     if settings.launch_at_login {
         app.autolaunch().enable().map_err(|e| e.to_string())?;
     } else {
-        app.autolaunch().disable().map_err(|e| e.to_string())?;
+        if let Err(e) = app.autolaunch().disable() {
+            let msg = e.to_string();
+            if !is_not_found_os_error(&msg) {
+                return Err(msg);
+            }
+        }
     }
 
     Ok(())
@@ -702,5 +711,13 @@ mod tests {
         assert!(models
             .iter()
             .all(|m| m.starts_with("gpt-") || m.starts_with("o1") || m.starts_with("o3")));
+    }
+
+    #[test]
+    fn not_found_os_error_detection_handles_windows_style_messages() {
+        assert!(is_not_found_os_error(
+            "The system cannot find the file specified. (os error 2)"
+        ));
+        assert!(!is_not_found_os_error("permission denied (os error 5)"));
     }
 }

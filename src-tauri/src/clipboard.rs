@@ -7,6 +7,55 @@ use crate::ai;
 use crate::settings;
 use crate::state::{AppState, CorrectionSession};
 
+async fn read_clipboard_with_retries(attempts: usize) -> String {
+    for _ in 0..attempts {
+        let text = tokio::task::spawn_blocking(|| {
+            use arboard::Clipboard;
+            Clipboard::new()
+                .and_then(|mut c| c.get_text())
+                .unwrap_or_default()
+        })
+        .await
+        .unwrap_or_default();
+
+        if !text.is_empty() {
+            return text;
+        }
+        sleep(Duration::from_millis(100)).await;
+    }
+    String::new()
+}
+
+#[cfg(target_os = "windows")]
+async fn send_windows_copy(use_ctrl_insert: bool) -> Result<(), String> {
+    tokio::task::spawn_blocking(move || {
+        use enigo::{Direction, Enigo, Key, Keyboard, Settings as EnigoSettings};
+        let mut enigo = Enigo::new(&EnigoSettings::default()).map_err(|e| e.to_string())?;
+
+        enigo
+            .key(Key::Control, Direction::Press)
+            .map_err(|e| e.to_string())?;
+
+        if use_ctrl_insert {
+            enigo
+                .key(Key::Insert, Direction::Click)
+                .map_err(|e| e.to_string())?;
+        } else {
+            enigo
+                .key(Key::C, Direction::Click)
+                .map_err(|e| e.to_string())?;
+        }
+
+        enigo
+            .key(Key::Control, Direction::Release)
+            .map_err(|e| e.to_string())?;
+
+        Ok::<(), String>(())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 pub async fn capture_and_correct(app: AppHandle) {
     if let Err(e) = do_capture(&app).await {
         eprintln!("[typox] error: {e}");
@@ -55,7 +104,14 @@ async fn do_capture(app: &AppHandle) -> Result<(), String> {
             ));
         }
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        // Prefer Ctrl+Insert first; some Windows apps treat Ctrl+C input simulation
+        // as a control character instead of a copy shortcut.
+        send_windows_copy(true).await?;
+    }
+
+    #[cfg(target_os = "linux")]
     {
         tokio::task::spawn_blocking(|| {
             use enigo::{Direction, Enigo, Key, Keyboard, Settings as EnigoSettings};
@@ -77,22 +133,13 @@ async fn do_capture(app: &AppHandle) -> Result<(), String> {
 
     // ── 3. Read clipboard, retry up to 3× until non-empty ────────────────────
     sleep(Duration::from_millis(150)).await;
-    let mut selected = String::new();
-    for _ in 0..3 {
-        let text = tokio::task::spawn_blocking(|| {
-            use arboard::Clipboard;
-            Clipboard::new()
-                .and_then(|mut c| c.get_text())
-                .unwrap_or_default()
-        })
-        .await
-        .unwrap_or_default();
+    let mut selected = read_clipboard_with_retries(3).await;
 
-        if !text.is_empty() {
-            selected = text;
-            break;
-        }
-        sleep(Duration::from_millis(100)).await;
+    #[cfg(target_os = "windows")]
+    if selected.is_empty() {
+        send_windows_copy(false).await?;
+        sleep(Duration::from_millis(120)).await;
+        selected = read_clipboard_with_retries(3).await;
     }
 
     if selected.is_empty() {
