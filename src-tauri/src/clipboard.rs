@@ -85,25 +85,32 @@ async fn do_capture(app: &AppHandle) -> Result<(), String> {
     .await
     .map_err(|e| e.to_string())??;
 
-    // ── 2. Simulate copy ──────────────────────────────────────────────────────
+    // ── 2. Simulate copy + capture source app (macOS: single osascript call) ──
     sleep(Duration::from_millis(100)).await;
 
     #[cfg(target_os = "macos")]
-    {
-        let status = std::process::Command::new("osascript")
+    let source_app = {
+        let out = std::process::Command::new("osascript")
             .args([
                 "-e",
-                "tell application \"System Events\" to keystroke \"c\" using command down",
+                "tell application \"System Events\"\n\
+                 set appName to name of first process whose frontmost is true\n\
+                 keystroke \"c\" using command down\n\
+                 return appName\n\
+                 end tell",
             ])
-            .status()
+            .output()
             .map_err(|e| e.to_string())?;
-        if !status.success() {
+        if !out.status.success() {
+            let stderr = String::from_utf8_lossy(&out.stderr);
             return Err(format!(
-                "osascript failed ({})",
-                status.code().unwrap_or(-1)
+                "osascript failed ({}): {}",
+                out.status.code().unwrap_or(-1),
+                stderr.trim()
             ));
         }
-    }
+        String::from_utf8_lossy(&out.stdout).trim().to_string()
+    };
     #[cfg(target_os = "windows")]
     {
         // Prefer Ctrl+Insert first; some Windows apps treat Ctrl+C input simulation
@@ -133,6 +140,7 @@ async fn do_capture(app: &AppHandle) -> Result<(), String> {
 
     // ── 3. Read clipboard, retry up to 3× until non-empty ────────────────────
     sleep(Duration::from_millis(150)).await;
+    #[allow(unused_mut)]
     let mut selected = read_clipboard_with_retries(3).await;
 
     #[cfg(target_os = "windows")]
@@ -146,15 +154,7 @@ async fn do_capture(app: &AppHandle) -> Result<(), String> {
         return Ok(());
     }
 
-    // ── 4. Capture source app BEFORE showing widget ───────────────────────────
-    #[cfg(target_os = "macos")]
-    let source_app = {
-        let out = std::process::Command::new("osascript")
-            .args(["-e", "tell application \"System Events\" to get name of first process whose frontmost is true"])
-            .output()
-            .map_err(|e| e.to_string())?;
-        String::from_utf8_lossy(&out.stdout).trim().to_string()
-    };
+    // ── 4. Capture source app BEFORE showing widget (non-macOS) ──────────────
     #[cfg(target_os = "windows")]
     let source_app = std::process::Command::new("powershell")
         .args([
@@ -183,14 +183,31 @@ async fn do_capture(app: &AppHandle) -> Result<(), String> {
         .get_webview_window("widget")
         .ok_or_else(|| "widget window not found".to_string())?;
 
+    const WIDGET_W: i32 = 640;
+    const WIDGET_H: i32 = 160;
+
+    let monitors = app.available_monitors().unwrap_or_default();
+    let monitor = monitors
+        .into_iter()
+        .find(|m| {
+            let pos = m.position();
+            let sz = m.size();
+            cursor_x >= pos.x
+                && cursor_x < pos.x + sz.width as i32
+                && cursor_y >= pos.y
+                && cursor_y < pos.y + sz.height as i32
+        })
+        .or_else(|| app.primary_monitor().ok().flatten());
+
     // Clamp widget position so it never appears off-screen
-    let (pos_x, pos_y) = if let Ok(Some(monitor)) = app.primary_monitor() {
-        let sz = monitor.size();
-        let max_x = (sz.width as i32 - 640).max(0);
-        let max_y = (sz.height as i32 - 160).max(0);
+    let (pos_x, pos_y) = if let Some(m) = monitor {
+        let pos = m.position();
+        let sz = m.size();
+        let max_x = (pos.x + sz.width as i32 - WIDGET_W).max(pos.x);
+        let max_y = (pos.y + sz.height as i32 - WIDGET_H).max(pos.y);
         (
-            (cursor_x + 12).clamp(0, max_x),
-            (cursor_y + 12).clamp(0, max_y),
+            (cursor_x + 12).clamp(pos.x, max_x),
+            (cursor_y + 12).clamp(pos.y, max_y),
         )
     } else {
         (cursor_x + 12, cursor_y + 12)

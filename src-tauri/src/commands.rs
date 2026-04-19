@@ -393,7 +393,7 @@ fn default_claude_models() -> Vec<String> {
     vec![
         "claude-haiku-4-5-20251001".to_string(),
         "claude-sonnet-4-5".to_string(),
-        "claude-opus-4-5".to_string(),
+        "claude-opus-4-7".to_string(),
         "claude-sonnet-4-6".to_string(),
         "claude-opus-4-6".to_string(),
     ]
