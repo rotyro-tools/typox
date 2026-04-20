@@ -1,0 +1,82 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Typox",
+  "version": "1.0.0",
+  "identifier": "com.rotyrotools.typox",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "macOSPrivateApi": true,
+    "security": {
+      "csp": "default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' asset: http://asset.localhost",
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$RESOURCE/**"]
+      }
+    },
+    "windows": [
+      {
+        "label": "widget",
+        "title": "Typox",
+        "url": "widget.html",
+        "alwaysOnTop": true,
+        "visible": false,
+        "skipTaskbar": true,
+        "width": 640,
+        "height": 160,
+        "minWidth": 400,
+        "minHeight": 140
+      },
+      {
+        "label": "settings",
+        "url": "settings.html",
+        "title": "Settings",
+        "visible": false,
+        "skipTaskbar": true,
+        "width": 480,
+        "height": 700,
+        "center": true,
+        "resizable": true
+      }
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNGRUIyN0MxQUVFREZGMjAKUldRZy8rMnV3U2ZyUCs5ZnM5bVZGTXltbU9obWVoczZ2V2FXRXhqbFBVci9QU3ljVGFVRHhDankK",
+      "endpoints": [
+        "https://github.com/rotyro-tools/typox/releases/latest/download/latest.json"
+      ]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "createUpdaterArtifacts": true,
+    "publisher": "rotyro",
+    "homepage": "https://github.com/rotyro-tools/typox",
+    "shortDescription": "AI-powered grammar and spelling correction app",
+    "longDescription": "Select text anywhere, trigger the global shortcut, and Typox corrects it in place — spelling, capitalization, verb forms, and obvious contextual errors — without changing your tone or style.",
+    "category": "Utility",
+    "copyright": "Copyright © 2026 rotyro",
+    "license": "MIT",
+    "licenseFile": "../LICENSE.md",
+    "macOS": {
+      "infoPlist": "Info.plist",
+      "signingIdentity": "-"
+    },
+    "resources": {
+      "icons/128x128.png": "icon.png"
+    },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

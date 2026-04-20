@@ -1,0 +1,64 @@
+name: 'Bug Report'
+description: 'Report a reproducible bug or unexpected behavior.'
+title: '[Bug Report] '
+labels: ['bug']
+type: Bug Report
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve **Typox**!
+        Please include enough detail to help us reproduce the issue.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description
+      description: What is happening?
+      placeholder: |
+        When I press Ctrl+Shift+Space, the widget appears but the correction is empty.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened instead?
+      placeholder: |
+        The widget should show the corrected text.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      placeholder: |
+        1. Select text in...
+        2. Press Ctrl+Shift+Space
+        3. See...
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Provide relevant details about your environment.
+      placeholder: |
+        - OS: macOS 15.0 (Apple Silicon)
+        - Typox: 1.0.0
+        - AI Provider: Ollama / Claude / OpenAI
+        - Model: gemma3:4b / claude-haiku-4-5-20251001 / gpt-4o-mini
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error output
+      description: Paste any relevant logs, stack traces, or console output.
+      render: shell
+    validations:
+      required: false

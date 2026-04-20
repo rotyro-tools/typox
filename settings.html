@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/src/style.css" />
+    <title>Settings</title>
+  </head>
+  <body
+    class="m-0 p-0 bg-neutral-900 text-white font-sans select-none flex flex-col h-screen"
+  >
+    <!-- Header -->
+    <div
+      class="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/6 shrink-0"
+    >
+      <img
+        id="app-icon"
+        alt="Typox"
+        class="w-14 h-14 rounded-xl bg-white p-1"
+      />
+      <div class="flex flex-col items-end gap-0.5">
+        <span class="text-sm font-semibold tracking-tight">Typox</span>
+        <span
+          id="app-version"
+          class="text-[11px] text-white/30 font-mono"
+        ></span>
+      </div>
+    </div>
+
+    <div class="px-5 py-4 space-y-5 overflow-y-auto flex-1 min-h-0">
+      <!-- Provider -->
+      <div class="space-y-2">
+        <p
+          class="text-[10px] uppercase tracking-widest text-white/30 font-medium"
+        >
+          Provider
+        </p>
+        <select
+          id="provider-select"
+          class="w-full px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:border-purple-500/50 cursor-pointer appearance-none"
+        >
+          <option value="ollama">Ollama (local)</option>
+          <option value="claude">Claude (Anthropic)</option>
+          <option value="openai">OpenAI</option>
+        </select>
+      </div>
+
+      <!-- Ollama section -->
+      <div id="section-ollama" class="space-y-2">
+        <p
+          class="text-[10px] uppercase tracking-widest text-white/30 font-medium"
+        >
+          Model
+        </p>
+        <div class="flex gap-2">
+          <select
+            id="ollama-model-select"
+            class="flex-1 px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:border-purple-500/50 cursor-pointer appearance-none"
+          ></select>
+          <button
+            id="btn-ollama-refresh"
+            class="px-3 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 cursor-pointer transition-colors"
+            title="Refresh model list"
+          >
+            ⟳
+          </button>
+        </div>
+        <p id="ollama-status" class="text-[11px] text-white/30"></p>
+      </div>
+
+      <!-- Claude section -->
+      <div id="section-claude" class="hidden space-y-4">
+        <div class="space-y-2">
+          <p
+            class="text-[10px] uppercase tracking-widest text-white/30 font-medium"
+          >
+            API Key
+          </p>
+          <div class="relative">
+            <input
+              id="claude-key-input"
+              type="password"
+              class="w-full px-3 py-2 pr-10 text-sm rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:border-purple-500/50 placeholder-white/20"
+              placeholder="sk-ant-…"
+            />
+            <button
+              id="btn-toggle-claude-key"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 cursor-pointer transition-colors"
+              tabindex="-1"
+            ></button>
+          </div>
+        </div>
+        <div class="space-y-2">
+          <p
+            class="text-[10px] uppercase tracking-widest text-white/30 font-medium"
+          >
+            Model
+          </p>
+          <select
+            id="claude-model-select"
+            class="w-full px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:border-purple-500/50 cursor-pointer appearance-none"
+          ></select>
+        </div>
+      </div>
+
+      <!-- OpenAI section -->
+      <div id="section-openai" class="hidden space-y-4">
+        <div class="space-y-2">
+          <p
+            class="text-[10px] uppercase tracking-widest text-white/30 font-medium"
+          >
+            API Key
+          </p>
+          <div class="relative">
+            <input
+              id="openai-key-input"
+              type="password"
+              class="w-full px-3 py-2 pr-10 text-sm rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:border-purple-500/50 placeholder-white/20"
+              placeholder="sk-…"
+            />
+            <button
+              id="btn-toggle-openai-key"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 cursor-pointer transition-colors"
+              tabindex="-1"
+            ></button>
+          </div>
+        </div>
+        <div class="space-y-2">
+          <p
+            class="text-[10px] uppercase tracking-widest text-white/30 font-medium"
+          >
+            Model
+          </p>
+          <select
+            id="openai-model-select"
+            class="w-full px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:border-purple-500/50 cursor-pointer appearance-none"
+          ></select>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div class="border-t border-white/6"></div>
+
+      <!-- System Prompt -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <p
+            class="text-[10px] uppercase tracking-widest text-white/30 font-medium"
+          >
+            System Prompt
+          </p>
+          <button
+            id="btn-reset-prompt"
+            class="text-[11px] text-white/30 hover:text-white/60 cursor-pointer transition-colors"
+          >
+            Reset to default
+          </button>
+        </div>
+        <textarea
+          id="prompt-textarea"
+          rows="8"
+          maxlength="4000"
+          class="w-full px-3 py-2 text-[12px] leading-relaxed rounded-lg bg-white/5 border border-white/10 text-white/80 focus:outline-none focus:border-purple-500/50 resize-y font-mono select-text"
+        ></textarea>
+      </div>
+
+      <!-- Divider -->
+      <div class="border-t border-white/6"></div>
+
+      <!-- Global Shortcut -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <p
+            class="text-[10px] uppercase tracking-widest text-white/30 font-medium"
+          >
+            Global Shortcut
+          </p>
+          <button
+            id="btn-reset-shortcut"
+            class="text-[11px] text-white/30 hover:text-white/60 cursor-pointer transition-colors"
+          >
+            Reset to default
+          </button>
+        </div>
+        <button
+          id="shortcut-recorder"
+          class="w-full px-3 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-white/70 hover:bg-white/8 cursor-pointer transition-colors text-left font-mono"
+        ></button>
+        <p id="shortcut-hint" class="text-[11px] text-white/30"></p>
+      </div>
+
+      <!-- Divider -->
+      <div class="border-t border-white/6"></div>
+
+      <!-- Launch at login -->
+      <div class="flex items-center justify-between">
+        <label
+          for="launch-at-login"
+          class="text-sm text-white/70 cursor-pointer"
+          >Launch at login</label
+        >
+        <input
+          id="launch-at-login"
+          type="checkbox"
+          class="accent-purple-500 w-4 h-4 cursor-pointer"
+        />
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="flex gap-2 px-5 py-4 border-t border-white/6 shrink-0">
+      <button
+        id="btn-save"
+        class="flex-1 py-2 text-sm rounded-lg bg-purple-600/30 border border-purple-500/40 text-purple-200 hover:bg-purple-600/45 cursor-pointer transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        Save Settings
+      </button>
+      <button
+        id="btn-update"
+        class="px-4 py-2 text-sm rounded-lg border border-white/10 bg-white/5 text-white/50 hover:bg-white/10 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        Check for Updates
+      </button>
+    </div>
+    <script type="module" src="/src/settings.ts"></script>
+  </body>
+</html>

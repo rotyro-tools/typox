@@ -1,0 +1,47 @@
+name: 'Feature Request'
+description: 'Suggest a new feature or improvement.'
+title: '[Feature Request] '
+labels: ['enhancement']
+type: Feature Request
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea to improve **Typox**?
+        Please describe it below.
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Problem or motivation
+      description: What problem or use case would this feature solve?
+      placeholder: |
+        I want to trigger a correction only on a specific word, not the whole selection.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the feature or enhancement you'd like to see.
+      placeholder: |
+        Add a secondary shortcut that corrects only the word under the cursor.
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Add any screenshots, links, or other context that might help.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you tried any workarounds?
+    validations:
+      required: false

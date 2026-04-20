@@ -1,0 +1,32 @@
+name: 'Question'
+description: 'Ask about usage, setup, or behavior clarification.'
+title: '[Question] '
+labels: ['question']
+type: Question
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a question about using **Typox**?
+        Please check [Discussions](https://github.com/rotyro-tools/typox/discussions) first —
+        if it's not answered there, ask below.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: What would you like to know?
+      placeholder: |
+        How do I use Typox with a custom Ollama model?
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What have you tried so far, and what's unclear?
+      placeholder: |
+        I pulled a model with ollama pull but it doesn't appear in the dropdown.
+    validations:
+      required: false
