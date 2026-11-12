@@ -7,7 +7,6 @@
   </head>
   <body
     class="m-0 select-none bg-neutral-900 h-full flex flex-col overflow-hidden"
-    style="-webkit-user-select: none; user-select: none"
   >
     <!-- Skeleton: shown while AI is processing -->
     <div
@@ -62,7 +61,7 @@
         </div>
         <div
           id="before-text"
-          class="text-sm text-white/40 leading-relaxed overflow-y-auto min-h-0 select-text cursor-text"
+          class="text-sm text-white/40 leading-relaxed whitespace-pre-wrap break-words overflow-y-auto min-h-0 select-text cursor-text"
         ></div>
       </div>
       <div class="bg-white/10 mx-0"></div>
@@ -96,7 +95,7 @@
         </div>
         <div
           id="after-text"
-          class="text-sm text-white/90 leading-relaxed overflow-y-auto min-h-0 select-text cursor-text"
+          class="text-sm text-white/90 leading-relaxed whitespace-pre-wrap break-words overflow-y-auto min-h-0 select-text cursor-text"
         ></div>
       </div>
     </div>
@@ -162,9 +161,9 @@
       <div id="btn-real" class="hidden justify-between items-center gap-2">
         <span
           id="changes-count"
-          class="hidden text-[10px] text-white/30"
+          class="hidden min-w-0 truncate text-[10px] text-white/30"
         ></span>
-        <div class="flex items-center gap-2 ml-auto">
+        <div class="flex shrink-0 items-center gap-2 ml-auto">
           <button
             id="btn-retry"
             class="hidden px-3 py-1 text-xs rounded-lg border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 cursor-pointer transition-colors"

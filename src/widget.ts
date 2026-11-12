@@ -1,149 +1,86 @@
-import { type DiffToken, computeDiff } from './diff';
+import {
+  type DiffToken,
+  computeDiff,
+  countChanges,
+  renderDiffHtml,
+} from './diff';
 import { invoke } from '@tauri-apps/api/core';
-import { LogicalSize } from '@tauri-apps/api/dpi';
 import { listen } from '@tauri-apps/api/event';
-import { getCurrentWindow } from '@tauri-apps/api/window';
-
-function countChanges(tokens: DiffToken[]): number {
-  let count = 0;
-  let inChange = false;
-  for (const token of tokens) {
-    if (token.changed || token.deleted === true) {
-      if (!inChange) {
-        count++;
-        inChange = true;
-      }
-    } else if (token.text.trim() !== '') {
-      inChange = false;
-    }
-    // whitespace between changes doesn't break the group
-  }
-  return count;
-}
 
 interface CorrectionPayload {
   original: string;
   corrected: string;
   noChanges: boolean;
+  /** Set when the correction still looks off (another language, a rewrite…). */
+  warning?: string | null;
 }
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+interface ErrorPayload {
+  message: string;
+  /** False when retrying can't help (nothing was selected, no permission…). */
+  retryable?: boolean;
 }
 
-function renderDiff(container: HTMLElement, tokens: DiffToken[]): void {
-  // Group consecutive deleted tokens into a single span
-  const parts: string[] = [];
-  let i = 0;
-  while (i < tokens.length) {
-    const token = tokens[i];
-    if (token.deleted === true) {
-      let group = token.text;
-      // Merge consecutive deleted tokens, skipping whitespace between them
-      while (i + 1 < tokens.length) {
-        let peek = i + 1;
-        // Skip whitespace tokens
-        while (
-          peek < tokens.length &&
-          tokens[peek].text.trim() === '' &&
-          tokens[peek].deleted !== true
-        )
-          peek++;
-        if (peek < tokens.length && tokens[peek].deleted === true) {
-          // Include the whitespace and the next deleted token
-          group += tokens
-            .slice(i + 1, peek + 1)
-            .map((t) => t.text)
-            .join('');
-          i = peek;
-        } else {
-          break;
-        }
-      }
-      parts.push(
-        `<span class="text-red-400 bg-red-400/10 rounded px-0.5 mx-0.5 line-through opacity-60">${escapeHtml(group)}</span>`,
-      );
-    } else if (token.changed) {
-      let group = token.text;
-      while (i + 1 < tokens.length) {
-        let peek = i + 1;
-        while (
-          peek < tokens.length &&
-          tokens[peek].text.trim() === '' &&
-          !tokens[peek].changed
-        )
-          peek++;
-        if (peek < tokens.length && tokens[peek].changed) {
-          group += tokens
-            .slice(i + 1, peek + 1)
-            .map((t) => t.text)
-            .join('');
-          i = peek;
-        } else {
-          break;
-        }
-      }
-      parts.push(
-        `<span class="text-purple-400 bg-purple-400/10 rounded px-0.5">${escapeHtml(group)}</span>`,
-      );
-    } else {
-      parts.push(escapeHtml(token.text));
-    }
-    i++;
-  }
-  container.innerHTML = parts.join('');
-}
+const byId = <T extends HTMLElement = HTMLElement>(id: string): T =>
+  document.getElementById(id) as T;
 
-const beforeText = document.getElementById('before-text')!;
-const afterText = document.getElementById('after-text')! as HTMLElement;
-const btnApply = document.getElementById('btn-apply')!;
-const btnEdit = document.getElementById('btn-edit')!;
-const btnRetry = document.getElementById('btn-retry')!;
-const skeletonView = document.getElementById('skeleton-view')!;
-const diffView = document.getElementById('diff-view')!;
-const noChangesView = document.getElementById('no-changes-view')!;
-const btnSkeleton = document.getElementById('btn-skeleton')!;
-const btnReal = document.getElementById('btn-real')!;
-const btnErrorBar = document.getElementById('btn-error')!;
-const changesCount = document.getElementById('changes-count')!;
-const errorView = document.getElementById('error-view')!;
-const errorMessage = document.getElementById('error-message')!;
+const beforeText = byId('before-text');
+const afterText = byId('after-text');
+const btnApply = byId('btn-apply');
+const btnEdit = byId('btn-edit');
+const btnRetry = byId('btn-retry');
+const skeletonView = byId('skeleton-view');
+const diffView = byId('diff-view');
+const noChangesView = byId('no-changes-view');
+const btnSkeleton = byId('btn-skeleton');
+const btnReal = byId('btn-real');
+const btnErrorBar = byId('btn-error');
+const btnErrorRetry = byId('btn-error-retry');
+const changesCount = byId('changes-count');
+const errorView = byId('error-view');
+const errorMessage = byId('error-message');
 
 let isEditing = false;
+let isBusy = false; // an apply, dismiss or retry is on its way
 let lastTokens: DiffToken[] | null = null;
+let lastOriginal = '';
 let lastCorrected = '';
 
 const DEFAULT_HEIGHT = 160;
 // Fixed chrome: title bar + label row + paddings + footer
 const CHROME_HEIGHT = 28 + 20 + 32 + 44;
 
+const show = (el: HTMLElement, visible: boolean): void => {
+  el.classList.toggle('hidden', !visible);
+};
+
 function getColumnWidth(): number {
   // window width - px-4 (32px) - 1px divider, split across 2 cols, minus col padding (12px each)
   return Math.floor((document.documentElement.clientWidth - 32 - 1) / 2) - 12;
 }
 
-function measureColumnHeight(escapedHtml: string): number {
+function measureColumnHeight(html: string): number {
   const probe = document.createElement('div');
-  probe.style.cssText = `position:fixed;visibility:hidden;top:0;left:0;width:${getColumnWidth()}px;font-size:0.875rem;line-height:1.625;word-break:break-word;white-space:normal;`;
-  probe.innerHTML = escapedHtml;
+  probe.style.cssText = `position:fixed;visibility:hidden;top:0;left:0;width:${getColumnWidth()}px;font-size:0.875rem;line-height:1.625;word-break:break-word;white-space:pre-wrap;`;
+  probe.innerHTML = html;
   document.body.appendChild(probe);
-  const h = probe.offsetHeight;
+  const height = probe.offsetHeight;
   probe.remove();
-  return h;
+  return height;
 }
 
+/** Grows the window to fit both columns; Rust caps it and keeps it centered. */
 async function resizeToContent(): Promise<void> {
-  const maxHeight = Math.floor(window.screen.height * 0.8);
-  const beforeH = measureColumnHeight(beforeText.innerHTML);
-  const afterH = measureColumnHeight(afterText.innerHTML);
-  const contentHeight = Math.max(beforeH, afterH);
-  const desired = CHROME_HEIGHT + contentHeight;
-  const clamped = Math.min(Math.max(desired, DEFAULT_HEIGHT), maxHeight);
-  await getCurrentWindow().setSize(new LogicalSize(640, clamped));
+  const contentHeight = Math.max(
+    measureColumnHeight(beforeText.innerHTML),
+    measureColumnHeight(afterText.innerHTML),
+  );
+  const height = Math.max(CHROME_HEIGHT + contentHeight, DEFAULT_HEIGHT);
+  try {
+    await invoke('fit_widget', { height });
+  } catch {
+    // Keeping the default size is fine.
+  }
 }
 
 const COPY_SVG =
@@ -152,8 +89,8 @@ const CHECK_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 const copyTimers = new WeakMap<HTMLElement, ReturnType<typeof setTimeout>>();
 
-function copyText(btn: HTMLElement, getText: () => string): void {
-  void navigator.clipboard.writeText(getText()).then(() => {
+function copyText(btn: HTMLElement, text: string): void {
+  void navigator.clipboard.writeText(text).then(() => {
     btn.innerHTML = CHECK_SVG;
     const existing = copyTimers.get(btn);
     if (existing !== undefined) clearTimeout(existing);
@@ -166,116 +103,116 @@ function copyText(btn: HTMLElement, getText: () => string): void {
   });
 }
 
-document.getElementById('btn-copy-before')!.addEventListener('click', (e) => {
-  copyText(e.currentTarget as HTMLElement, () => beforeText.textContent ?? '');
+byId('btn-copy-before').addEventListener('click', (e) => {
+  copyText(e.currentTarget as HTMLElement, lastOriginal);
 });
-document.getElementById('btn-copy-after')!.addEventListener('click', (e) => {
-  copyText(e.currentTarget as HTMLElement, () => lastCorrected);
+byId('btn-copy-after').addEventListener('click', (e) => {
+  copyText(e.currentTarget as HTMLElement, lastCorrected);
 });
 
 type ViewName = 'skeleton' | 'diff' | 'noChanges' | 'error';
 
 function switchView(view: ViewName): void {
-  skeletonView.classList.toggle('hidden', view !== 'skeleton');
-  skeletonView.classList.toggle('grid', view === 'skeleton');
-  diffView.classList.toggle('hidden', view !== 'diff');
-  diffView.classList.toggle('grid', view === 'diff');
-  noChangesView.classList.toggle('hidden', view !== 'noChanges');
-  noChangesView.classList.toggle('flex', view === 'noChanges');
-  errorView.classList.toggle('hidden', view !== 'error');
-  errorView.classList.toggle('flex', view === 'error');
-  btnSkeleton.classList.toggle('hidden', view !== 'skeleton');
-  btnSkeleton.classList.toggle('flex', view === 'skeleton');
-  btnReal.classList.toggle('hidden', view === 'skeleton' || view === 'error');
-  btnReal.classList.toggle('flex', view !== 'skeleton' && view !== 'error');
-  btnErrorBar.classList.toggle('hidden', view !== 'error');
-  btnErrorBar.classList.toggle('flex', view === 'error');
+  const toggle = (el: HTMLElement, visible: boolean, display: string) => {
+    show(el, visible);
+    el.classList.toggle(display, visible);
+  };
+  toggle(skeletonView, view === 'skeleton', 'grid');
+  toggle(diffView, view === 'diff', 'grid');
+  toggle(noChangesView, view === 'noChanges', 'flex');
+  toggle(errorView, view === 'error', 'flex');
+  toggle(btnSkeleton, view === 'skeleton', 'flex');
+  toggle(btnReal, view === 'diff' || view === 'noChanges', 'flex');
+  toggle(btnErrorBar, view === 'error', 'flex');
 }
 
-function showErrorView(message: string): void {
+function showErrorView(message: string, retryable = true): void {
   errorMessage.textContent = message;
+  show(btnErrorRetry, retryable);
   switchView('error');
 }
 
+/** Shows the edit count, or the warning in its place. */
+function showStatus(count: number, warning?: string | null): void {
+  changesCount.classList.toggle('text-amber-300/80', Boolean(warning));
+  changesCount.classList.toggle('text-white/30', !warning);
+  if (warning) {
+    changesCount.textContent = `⚠ ${warning}`;
+    changesCount.title = warning;
+  } else {
+    changesCount.textContent = `${count} change${count === 1 ? '' : 's'}`;
+    changesCount.title = '';
+  }
+  show(changesCount, Boolean(warning) || count > 0);
+}
+
 function clearContent(): void {
+  isEditing = false;
+  afterText.contentEditable = 'false';
   beforeText.textContent = '';
   afterText.textContent = '';
-  btnApply.classList.add('hidden');
-  btnEdit.classList.add('hidden');
-  btnRetry.classList.add('hidden');
-  changesCount.classList.add('hidden');
-  errorView.classList.remove('flex');
-  errorView.classList.add('hidden');
-  btnErrorBar.classList.remove('flex');
-  btnErrorBar.classList.add('hidden');
+  lastTokens = null;
+  [btnApply, btnEdit, btnRetry, changesCount].forEach((el) => show(el, false));
   switchView('skeleton');
 }
+
+const EDIT_CLASSES = ['outline-none', 'ring-1', 'ring-white/20', 'rounded'];
 
 function setEditMode(active: boolean, keepEdits = false): void {
   isEditing = active;
   if (active) {
     afterText.textContent = lastCorrected;
-    afterText.contentEditable = 'true';
-    afterText.classList.add(
-      'outline-none',
-      'ring-1',
-      'ring-white/20',
-      'rounded',
-    );
+    afterText.contentEditable = 'plaintext-only';
+    afterText.classList.add(...EDIT_CLASSES);
     afterText.focus();
-    // In edit mode: only Dismiss + Done
-    btnRetry.classList.add('hidden');
-    btnEdit.classList.add('hidden');
+    show(btnRetry, false);
+    show(btnEdit, false);
     btnApply.innerHTML =
       'Done <kbd class="text-[10px] opacity-60 font-sans ml-1">↵</kbd>';
-    btnApply.classList.remove('hidden');
-  } else {
-    afterText.contentEditable = 'false';
-    afterText.classList.remove(
-      'outline-none',
-      'ring-1',
-      'ring-white/20',
-      'rounded',
-    );
-    // Restore normal buttons
-    btnRetry.classList.remove('hidden');
-    btnEdit.classList.remove('hidden');
-    btnApply.innerHTML =
-      'Apply <kbd class="text-[10px] opacity-60 font-sans ml-1">↵</kbd>';
-    if (keepEdits) {
-      const edited = afterText.textContent ?? '';
-      lastCorrected = edited;
-      const tokens = computeDiff(beforeText.textContent ?? '', edited);
-      lastTokens = tokens;
-      renderDiff(afterText, tokens);
-      const count = countChanges(tokens);
-      if (count > 0) {
-        changesCount.textContent = `${count} change${count === 1 ? '' : 's'}`;
-        changesCount.classList.remove('hidden');
-      } else {
-        changesCount.classList.add('hidden');
-      }
-    } else if (lastTokens !== null) {
-      renderDiff(afterText, lastTokens);
-    }
+    show(btnApply, true);
+    return;
+  }
+  afterText.contentEditable = 'false';
+  afterText.classList.remove(...EDIT_CLASSES);
+  show(btnRetry, true);
+  show(btnEdit, true);
+  btnApply.innerHTML =
+    'Apply <kbd class="text-[10px] opacity-60 font-sans ml-1">↵</kbd>';
+  if (keepEdits) {
+    // innerText keeps the line breaks typed in the editor.
+    lastCorrected = afterText.innerText;
+    lastTokens = computeDiff(lastOriginal, lastCorrected);
+    showStatus(countChanges(lastTokens));
+  }
+  if (lastTokens !== null) {
+    afterText.innerHTML = renderDiffHtml(lastTokens);
   }
 }
 
-async function applyCorrection(): Promise<void> {
-  const overrideText = isEditing
-    ? (afterText.textContent ?? lastCorrected)
-    : lastCorrected;
-  setEditMode(false);
-  clearContent();
+/** Runs one widget action at a time, showing its error if it fails. */
+async function runAction(
+  action: () => Promise<unknown>,
+  clear = true,
+): Promise<void> {
+  if (isBusy) return;
+  isBusy = true;
+  if (clear) clearContent();
   try {
-    await invoke('apply_correction', { overrideText });
+    await action();
   } catch (e) {
     showErrorView(String(e));
+  } finally {
+    isBusy = false;
   }
 }
 
+function applyCorrection(): Promise<void> {
+  const overrideText = isEditing ? afterText.innerText : lastCorrected;
+  return runAction(() => invoke('apply_correction', { overrideText }));
+}
+
+/** Not gated by isBusy: Esc must work even while a retry is waiting on the AI. */
 async function dismissCorrection(): Promise<void> {
-  setEditMode(false);
   clearContent();
   try {
     await invoke('dismiss_correction');
@@ -284,103 +221,88 @@ async function dismissCorrection(): Promise<void> {
   }
 }
 
-btnApply.addEventListener('click', () => {
-  void applyCorrection();
-});
-document.getElementById('btn-dismiss')!.addEventListener('click', () => {
-  void dismissCorrection();
-});
-
-btnEdit.addEventListener('click', () => {
-  setEditMode(!isEditing);
-});
-
-async function retryCorrection(): Promise<void> {
-  setEditMode(false);
-  clearContent();
-  try {
-    await invoke('retry_correction');
-  } catch (e) {
-    showErrorView(String(e));
-  }
+function retryCorrection(): Promise<void> {
+  // The outcome arrives as a correction-ready or correction-error event.
+  return runAction(() => invoke('retry_correction'));
 }
 
-btnRetry.addEventListener('click', () => {
-  void retryCorrection();
-});
+btnApply.addEventListener('click', () => void applyCorrection());
+byId('btn-dismiss').addEventListener('click', () => void dismissCorrection());
+btnEdit.addEventListener('click', () => setEditMode(!isEditing));
+btnRetry.addEventListener('click', () => void retryCorrection());
+btnErrorRetry.addEventListener('click', () => void retryCorrection());
+byId('btn-error-dismiss').addEventListener(
+  'click',
+  () => void dismissCorrection(),
+);
+
+const visible = (el: HTMLElement): boolean => !el.classList.contains('hidden');
 
 document.addEventListener('keydown', (e: KeyboardEvent) => {
+  if (e.repeat || e.isComposing) return;
   if (isEditing) {
     if (e.key === 'Escape') {
       e.preventDefault();
       setEditMode(false);
-      return;
-    }
-    if (e.key === 'Enter' && !e.shiftKey) {
+    } else if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       setEditMode(false, true);
-      return;
     }
     return;
   }
-  if (e.key === 'Enter' && !btnApply.classList.contains('hidden'))
+  // Leave Cmd/Ctrl/Alt combinations (copy, select all…) alone.
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const key = e.key.toLowerCase();
+  if (e.key === 'Escape') {
+    void dismissCorrection();
+  } else if (e.key === 'Enter' && visible(btnApply)) {
+    e.preventDefault();
     void applyCorrection();
-  if (e.key === 'Escape') void dismissCorrection();
-  if (e.key === 'e' && !btnEdit.classList.contains('hidden')) {
+  } else if (key === 'e' && visible(btnEdit)) {
     e.preventDefault();
     setEditMode(true);
-  }
-  if (
-    e.key === 'r' &&
-    (!btnRetry.classList.contains('hidden') ||
-      !btnErrorBar.classList.contains('hidden'))
-  )
+  } else if (
+    key === 'r' &&
+    (visible(btnRetry) || (visible(btnErrorBar) && visible(btnErrorRetry)))
+  ) {
     void retryCorrection();
-});
-
-document.getElementById('btn-error-retry')!.addEventListener('click', () => {
-  void retryCorrection();
-});
-document.getElementById('btn-error-dismiss')!.addEventListener('click', () => {
-  void dismissCorrection();
+  }
 });
 
 async function initListeners(): Promise<void> {
-  await listen<{ message: string }>('correction-error', (event) => {
-    showErrorView(event.payload.message);
-    void getCurrentWindow().setFocus();
+  await listen<ErrorPayload>('correction-error', ({ payload }) => {
+    showErrorView(payload.message, payload.retryable !== false);
   });
 
   await listen('correction-started', () => {
     clearContent();
   });
 
-  await listen<CorrectionPayload>('correction-ready', (event) => {
-    const { original, corrected, noChanges } = event.payload;
+  await listen<CorrectionPayload>('correction-ready', ({ payload }) => {
+    const { original, corrected, noChanges, warning } = payload;
+    lastOriginal = original;
+    lastCorrected = corrected;
+    isEditing = false;
 
     if (noChanges) {
+      lastTokens = null;
       switchView('noChanges');
-      btnApply.classList.add('hidden');
-      btnEdit.classList.add('hidden');
-      btnRetry.classList.remove('hidden');
-      changesCount.classList.add('hidden');
-    } else {
-      const tokens = computeDiff(original, corrected);
-      const count = countChanges(tokens);
-      lastTokens = tokens;
-      lastCorrected = corrected;
-      switchView('diff');
-      beforeText.textContent = original;
-      renderDiff(afterText, tokens);
-      btnApply.classList.remove('hidden');
-      btnEdit.classList.remove('hidden');
-      btnRetry.classList.remove('hidden');
-      changesCount.textContent = `${count} change${count === 1 ? '' : 's'}`;
-      changesCount.classList.remove('hidden');
-      void resizeToContent();
+      show(btnApply, false);
+      show(btnEdit, false);
+      show(btnRetry, true);
+      show(changesCount, false);
+      return;
     }
 
-    void getCurrentWindow().setFocus();
+    lastTokens = computeDiff(original, corrected);
+    switchView('diff');
+    beforeText.textContent = original;
+    afterText.innerHTML = renderDiffHtml(lastTokens);
+    show(btnApply, true);
+    show(btnEdit, true);
+    show(btnRetry, true);
+    showStatus(countChanges(lastTokens), warning);
+    void resizeToContent();
   });
 }
 

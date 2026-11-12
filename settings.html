@@ -14,6 +14,7 @@
     >
       <img
         id="app-icon"
+        src="./src-tauri/icons/128x128.png"
         alt="Typox"
         class="w-14 h-14 rounded-xl bg-white p-1"
       />
@@ -81,12 +82,23 @@
               type="password"
               class="w-full px-3 py-2 pr-10 text-sm rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:border-purple-500/50 placeholder-white/20"
               placeholder="sk-ant-…"
+              autocomplete="off"
+              spellcheck="false"
             />
             <button
               id="btn-toggle-claude-key"
               class="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 cursor-pointer transition-colors"
               tabindex="-1"
             ></button>
+          </div>
+          <div class="flex items-center justify-between gap-2">
+            <p id="claude-key-hint" class="text-[11px] text-white/30"></p>
+            <button
+              id="btn-remove-claude-key"
+              class="hidden shrink-0 text-[11px] text-white/30 hover:text-red-300 cursor-pointer transition-colors"
+            >
+              Remove key
+            </button>
           </div>
         </div>
         <div class="space-y-2">
@@ -116,12 +128,23 @@
               type="password"
               class="w-full px-3 py-2 pr-10 text-sm rounded-lg bg-white/5 border border-white/10 text-white focus:outline-none focus:border-purple-500/50 placeholder-white/20"
               placeholder="sk-…"
+              autocomplete="off"
+              spellcheck="false"
             />
             <button
               id="btn-toggle-openai-key"
               class="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 cursor-pointer transition-colors"
               tabindex="-1"
             ></button>
+          </div>
+          <div class="flex items-center justify-between gap-2">
+            <p id="openai-key-hint" class="text-[11px] text-white/30"></p>
+            <button
+              id="btn-remove-openai-key"
+              class="hidden shrink-0 text-[11px] text-white/30 hover:text-red-300 cursor-pointer transition-colors"
+            >
+              Remove key
+            </button>
           </div>
         </div>
         <div class="space-y-2">
@@ -158,7 +181,7 @@
         <textarea
           id="prompt-textarea"
           rows="8"
-          maxlength="4000"
+          maxlength="8000"
           class="w-full px-3 py-2 text-[12px] leading-relaxed rounded-lg bg-white/5 border border-white/10 text-white/80 focus:outline-none focus:border-purple-500/50 resize-y font-mono select-text"
         ></textarea>
       </div>

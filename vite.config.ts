@@ -7,6 +7,8 @@ export default defineConfig({
   plugins: [tailwindcss()],
   clearScreen: false,
   build: {
+    // Emit every asset as a file: the CSP allows images from 'self' only, not data: URIs.
+    assetsInlineLimit: 0,
     rollupOptions: {
       input: {
         widget: new URL('widget.html', import.meta.url).pathname,

@@ -10,13 +10,8 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "macOSPrivateApi": true,
     "security": {
-      "csp": "default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' asset: http://asset.localhost",
-      "assetProtocol": {
-        "enable": true,
-        "scope": ["$RESOURCE/**"]
-      }
+      "csp": "default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self'"
     },
     "windows": [
       {
@@ -29,7 +24,9 @@
         "width": 640,
         "height": 160,
         "minWidth": 400,
-        "minHeight": 140
+        "minHeight": 140,
+        "visibleOnAllWorkspaces": true,
+        "center": false
       },
       {
         "label": "settings",
@@ -67,9 +64,6 @@
     "macOS": {
       "infoPlist": "Info.plist",
       "signingIdentity": "-"
-    },
-    "resources": {
-      "icons/128x128.png": "icon.png"
     },
     "icon": [
       "icons/32x32.png",
