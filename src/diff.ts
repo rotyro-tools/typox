@@ -9,6 +9,8 @@ export function tokenize(text: string): string[] {
   return text.split(/(\s+)/);
 }
 
+const isBlank = (text: string): boolean => text.trim() === '';
+
 /**
  * LCS-based sequence diff.
  * Returns tokens for the corrected text (insertions marked changed)
@@ -19,8 +21,8 @@ export function computeDiff(original: string, corrected: string): DiffToken[] {
   const corrTokens = tokenize(corrected);
 
   // Build LCS table on word tokens only (skip whitespace for matching)
-  const origWords = origTokens.filter((t) => t.trim() !== '');
-  const corrWords = corrTokens.filter((t) => t.trim() !== '');
+  const origWords = origTokens.filter((t) => !isBlank(t));
+  const corrWords = corrTokens.filter((t) => !isBlank(t));
 
   const m = origWords.length;
   const n = corrWords.length;
@@ -57,31 +59,35 @@ export function computeDiff(original: string, corrected: string): DiffToken[] {
   }
   ops.reverse();
 
-  // Build output tokens, re-inserting whitespace between words
+  // Build output tokens, re-inserting the corrected text's whitespace between words.
+  // Deleted words get exactly one space on each side, so nothing doubles up.
   const result: DiffToken[] = [];
   let corrIdx = 0; // position in corrTokens (includes whitespace)
 
   for (const op of ops) {
+    const last = result.at(-1);
     if (op.type === 'delete') {
-      if (result.length > 0 && result[result.length - 1].text !== ' ') {
+      if (last !== undefined && !isBlank(last.text)) {
         result.push({ text: ' ', changed: false });
       }
       result.push({ text: op.text, changed: false, deleted: true });
-      result.push({ text: ' ', changed: false });
-    } else {
-      // Advance corrIdx to find this word in corrTokens
-      while (corrIdx < corrTokens.length && corrTokens[corrIdx].trim() === '') {
+      continue;
+    }
+    let spaced = false;
+    while (corrIdx < corrTokens.length && isBlank(corrTokens[corrIdx])) {
+      if (corrTokens[corrIdx] !== '') {
         result.push({ text: corrTokens[corrIdx], changed: false });
-        corrIdx++;
+        spaced = true;
       }
-      // corrIdx always points to a word token here: ops are derived from corrWords
-      // (the non-whitespace subset of corrTokens), so a matching token always exists.
-      result.push({
-        text: corrTokens[corrIdx],
-        changed: op.type === 'insert',
-      });
       corrIdx++;
     }
+    if (!spaced && last?.deleted === true) {
+      result.push({ text: ' ', changed: false });
+    }
+    // corrIdx always points to a word token here: ops are derived from corrWords
+    // (the non-whitespace subset of corrTokens), so a matching token always exists.
+    result.push({ text: corrTokens[corrIdx], changed: op.type === 'insert' });
+    corrIdx++;
   }
 
   // Flush remaining whitespace
@@ -91,4 +97,75 @@ export function computeDiff(original: string, corrected: string): DiffToken[] {
   }
 
   return result;
+}
+
+/** Number of separate edits; whitespace between changed words doesn't split an edit. */
+export function countChanges(tokens: DiffToken[]): number {
+  let count = 0;
+  let inChange = false;
+  for (const token of tokens) {
+    if (token.changed || token.deleted === true) {
+      if (!inChange) {
+        count++;
+        inChange = true;
+      }
+    } else if (!isBlank(token.text)) {
+      inChange = false;
+    }
+  }
+  return count;
+}
+
+export function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+const DELETED_CLASS =
+  'text-red-400 bg-red-400/10 rounded px-0.5 mx-0.5 line-through opacity-60';
+const INSERTED_CLASS = 'text-purple-400 bg-purple-400/10 rounded px-0.5';
+
+/**
+ * HTML for the corrected text with edits highlighted. Consecutive deleted (or inserted)
+ * words, and the whitespace between them, share one span. All text is escaped.
+ */
+export function renderDiffHtml(tokens: DiffToken[]): string {
+  const kind = (t: DiffToken): 'deleted' | 'inserted' | 'plain' =>
+    t.deleted === true ? 'deleted' : t.changed ? 'inserted' : 'plain';
+
+  const parts: string[] = [];
+  let i = 0;
+  while (i < tokens.length) {
+    const current = kind(tokens[i]);
+    if (current === 'plain') {
+      parts.push(escapeHtml(tokens[i].text));
+      i++;
+      continue;
+    }
+    let group = tokens[i].text;
+    let end = i + 1;
+    for (;;) {
+      let peek = end;
+      while (
+        peek < tokens.length &&
+        kind(tokens[peek]) === 'plain' &&
+        isBlank(tokens[peek].text)
+      ) {
+        peek++;
+      }
+      if (peek >= tokens.length || kind(tokens[peek]) !== current) break;
+      group += tokens
+        .slice(end, peek + 1)
+        .map((t) => t.text)
+        .join('');
+      end = peek + 1;
+    }
+    const cls = current === 'deleted' ? DELETED_CLASS : INSERTED_CLASS;
+    parts.push(`<span class="${cls}">${escapeHtml(group)}</span>`);
+    i = end;
+  }
+  return parts.join('');
 }

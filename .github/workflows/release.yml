@@ -76,11 +76,14 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
+      - name: Typecheck
+        run: npm run typecheck
+
       - name: Run tests
         run: npm run test:coverage
 
       - name: Rust lint
-        run: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 
       - name: Rust format check
         run: cargo fmt --manifest-path src-tauri/Cargo.toml --check

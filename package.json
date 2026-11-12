@@ -12,6 +12,7 @@
     "lint:fix": "eslint src --fix",
     "format": "prettier --write src",
     "format:check": "prettier --check src",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "cm": "cz",
@@ -19,7 +20,8 @@
     "release:new": "bash scripts/release.sh"
   },
   "overrides": {
-    "picomatch": "^4.0.4"
+    "picomatch": "^4.0.4",
+    "minimatch@>=7.0.0 <11.0.1": "^11.0.8"
   },
   "config": {
     "commitizen": {
@@ -27,13 +29,12 @@
     }
   },
   "dependencies": {
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-opener": "^2"
+    "@tauri-apps/api": "^2"
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.5.0",
-    "@commitlint/config-conventional": "^20.5.0",
-    "@commitlint/types": "^20.5.0",
+    "@commitlint/cli": "^21.2.4",
+    "@commitlint/config-conventional": "^21.2.4",
+    "@commitlint/types": "^21.2.3",
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.2.2",
@@ -41,7 +42,7 @@
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
     "@typescript-eslint/eslint-plugin": "^8.58.2",
     "@typescript-eslint/parser": "^8.58.2",
-    "@vitest/coverage-v8": "^4.1.1",
+    "@vitest/coverage-v8": "^5.1.0",
     "commitizen": "^4.3.1",
     "cz-conventional-changelog": "^3.3.0",
     "eslint": "^10.2.1",
@@ -53,6 +54,6 @@
     "tailwindcss": "^4.2.2",
     "typescript": "~6.0.3",
     "vite": "^8.0.8",
-    "vitest": "^4.1.1"
+    "vitest": "^5.1.0"
   }
 }

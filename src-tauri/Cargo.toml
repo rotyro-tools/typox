@@ -15,11 +15,10 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["protocol-asset", "macos-private-api", "tray-icon"] }
+tauri = { version = "2", features = ["image-png", "tray-icon"] }
 tauri-plugin-autostart = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-notification = "2"
-tauri-plugin-opener = "2"
 tauri-plugin-store = "2"
 tauri-plugin-updater = "2"
 serde = { version = "1", features = ["derive"] }
@@ -29,6 +28,11 @@ reqwest = { version = "0.13", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 enigo = "0.6"
 arboard = "3"
+keyring = "4.2.0"
+whatlang = "0.18"
+
+[dev-dependencies]
+wiremock = "0.6.5"
 
 [profile.dev]
 incremental = true
