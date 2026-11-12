@@ -69,8 +69,8 @@ node -e "
 perl -i -0pe "s/^version = \"${CURRENT_VERSION}\"/version = \"${NEW_VERSION}\"/m" \
   src-tauri/Cargo.toml
 
-# Refresh Cargo.lock
-cargo generate-lockfile --quiet --manifest-path src-tauri/Cargo.toml
+# Refresh Typox's own entry in Cargo.lock; dependencies stay at the tested versions
+cargo update --workspace --quiet --manifest-path src-tauri/Cargo.toml
 
 # Refresh package-lock.json
 npm install --package-lock-only --silent
